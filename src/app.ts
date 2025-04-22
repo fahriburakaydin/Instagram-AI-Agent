@@ -1,53 +1,45 @@
+// src/app.ts
+
 import express, { Application } from 'express';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import helmet from 'helmet'; // For securing HTTP headers
+import helmet from 'helmet';
 
 import { runInstagram } from './client/Instagram';
 import logger, { setupErrorHandlers } from './config/logger';
 import { setup_HandleError } from './utils';
 import { connectDB } from './config/db';
-// import { main as twitterMain } from './client/Twitter'; //
-// import { main as githubMain } from './client/GitHub'; // 
 
-// Set up process-level error handlers
 setupErrorHandlers();
-
-// Initialize environment variables
 dotenv.config();
 
-const app: Application = express();
-
-// Connect to the database
+export const app: Application = express();
 connectDB();
 
-// Middleware setup
-app.use(helmet({ xssFilter: true, noSniff: true })); // Security headers
-app.use(express.json()); // JSON body parsing
-app.use(express.urlencoded({ extended: true, limit: '1kb' })); // URL-encoded data
-app.use(cookieParser()); // Cookie parsing
+app.use(helmet({ xssFilter: true, noSniff: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '1kb' }));
+app.use(cookieParser());
 
-const runAgents = async () => {
-    while (true) {
-        logger.info("Starting Instagram agent iteration...");
-        await runInstagram();
-        logger.info("Instagram agent iteration finished.");
+async function oneCycle() {
+  try {
+    logger.info("🔄 Feed pass…");
+    await runInstagram();
 
-        // logger.info("Starting Twitter agent...");
-        // await twitterMain();
-        // logger.info("Twitter agent finished.");
+    logger.info("🔄 Comment‐reply pass…");
+    await runInstagram(); // or runCommentReplies()
 
-        // logger.info("Starting GitHub agent...");
-        // await githubMain();
-        // logger.info("GitHub agent finished.");
+    logger.info("🔄 DM‐reply pass…");
+    await runInstagram(); // or runDMReplies()
+  } catch (err) {
+    setup_HandleError(err, "oneCycle");
+  }
+}
 
-        // Wait for 30 seconds before next iteration
-        await new Promise(resolve => setTimeout(resolve, 30000));
-    }
-};
-
-runAgents().catch(error => {
-    setup_HandleError(error , "Error running agents:");
-});
-
-export default app;
+export async function runAgents() {
+  while (true) {
+    await oneCycle();
+    logger.info("⏱️ Sleeping 30 seconds before next cycle…");
+    await new Promise(r => setTimeout(r, 30000));
+  }
+}

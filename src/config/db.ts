@@ -12,3 +12,18 @@ export const connectDB = async () => {
     process.exit(1);
   }
 };
+
+
+// below your existing connection logic, add:
+const repliedCommentSchema = new mongoose.Schema({
+  commentId: { type: String, required: true, unique: true },
+  repliedAt: { type: Date, default: Date.now },
+});
+export const RepliedComment = mongoose.model("RepliedComment", repliedCommentSchema);
+
+const dmSchema = new mongoose.Schema({
+  messageId: { type: String, required: true, unique: true },
+  repliedAt: { type: Date, default: Date.now },
+});
+export const RepliedDM = mongoose.model("RepliedDM", dmSchema);
+
